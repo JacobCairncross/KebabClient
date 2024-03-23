@@ -1,0 +1,23 @@
+{
+  "Version": 1,
+  "Hash": "MVoBpgpJjHXNeqdWVV0xvVeq52ZE2ZtivXj1uScqXyM=",
+  "Source": "kebabClient",
+  "BasePath": "_content/kebabClient",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [
+    {
+      "Identity": "C:\\Users\\bills\\Babel\\kebab\\kebab.csproj",
+      "Version": 2,
+      "Source": "kebab",
+      "GetPublishAssetsTargets": "ComputeReferencedStaticWebAssetsPublishManifest;GetCurrentProjectPublishStaticWebAssetItems",
+      "AdditionalPublishProperties": "",
+      "AdditionalPublishPropertiesToRemove": "WebPublishProfileFile;Configuration;Platform;TargetFramework",
+      "GetBuildAssetsTargets": "GetCurrentProjectBuildStaticWebAssetItems",
+      "AdditionalBuildProperties": "",
+      "AdditionalBuildPropertiesToRemove": "WebPublishProfileFile;Configuration;Platform;TargetFramework"
+    }
+  ],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
