@@ -1,4 +1,10 @@
 public class TestModel
 {
-    public char[]? TestVar {get;set;}
+    public TestChildModel[]? TestVar {get;set;}
+}
+
+public class TestChildModel
+{
+    public string? A {get;set;}
+    public int B {get;set;}
 }

@@ -19,7 +19,7 @@ public class TransactionManager
         _walletManager = walletManager;
     }
     // Should it be bool or return an 'error' object giving reason why it failed?
-    public async Task<bool> SpendTransactions(List<Tuple<char[], int>> outputs)
+    public async Task<bool> SpendTransactions(List<Tuple<string, int>> outputs)
     {
         // Get all transaction outputs assigned to this public key
         // (maybe an efficiency to only get enough to spend the desired amount / keep track of last place in chain with unused transactions)
@@ -32,12 +32,13 @@ public class TransactionManager
         }
 
         //Make the outputs here
-        List<TransactionOutput> transactionOutputs = (List<TransactionOutput>)outputs.Select(
+        Random rnd = new();
+        List<TransactionOutput> transactionOutputs = outputs.Select(
             o => new TransactionOutput(){
                 PublicKey = o.Item1,
                 Value = o.Item2,
-                Nonce = new Guid()
-            });
+                Nonce = rnd.Next()
+            }).ToList();
         
         // Transactions to spend will be enough for outputs or it will be empty
         List<TransactionOutputWrapper> transactionsToSpend = GetTransactionsToSpend(UnspentTransactions, outputCost);

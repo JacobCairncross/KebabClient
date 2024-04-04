@@ -22,6 +22,7 @@ builder.Services.AddSingleton<Kebab.Models.Options>(blockChainOptions);
 builder.Services.AddSingleton<BlockChainManager>();
 builder.Services.AddSingleton<WalletManager>();
 builder.Services.AddSingleton<MinerManager>();
+builder.Services.AddSingleton<KebabClient.Managers.TransactionManager>();
 // Think this is better served as singleton as it seems 'expensive' to build for each request
 builder.Services.AddHttpClient();
 
