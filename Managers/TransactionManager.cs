@@ -50,14 +50,13 @@ public class TransactionManager
         List<TransactionInput> transactionInputs = new();
         foreach(var transactionOutput in transactionsToSpend)
         {
-            transactionInputs.Append(new TransactionInput(){
+            transactionInputs.Add(new TransactionInput(){
                 BlockId = transactionOutput.Blockid,
                 txid = transactionOutput.TxId,
                 OutputIndex = transactionOutput.OutputIndex,
                 Signature = await SignOutput(transactionOutput.TxOut)
             });
         }
-
         // (might be better to select a few that make the best match - least change - but that doesn't matter if you just make change. Choosing earliest transactions also works better for the speed up of keeping a tracker on the chain)
         // Sign the transactions to make them inputs
         // make a transaction
