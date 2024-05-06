@@ -19,6 +19,10 @@ Kebab.Models.Options blockChainOptions = new(){
 };
 // Find out why singleton lets us do this but not scoped
 builder.Services.AddSingleton<Kebab.Models.Options>(blockChainOptions);
+KnownMiners miners = new(){
+    miners = builder.Configuration.GetSection("KnownMiners").Get<string[]>()
+};
+builder.Services.AddSingleton<KnownMiners>(miners);
 builder.Services.AddSingleton<BlockChainManager>();
 builder.Services.AddSingleton<WalletManager>();
 builder.Services.AddSingleton<MinerManager>();

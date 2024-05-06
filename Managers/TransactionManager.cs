@@ -118,6 +118,7 @@ public class TransactionManager
         UTF8Encoding encoder = new();
         byte[] output = encoder.GetBytes(txOut.ToString());
         byte[] hmacKey = Encoding.ASCII.GetBytes("garlic sauce");
+        // ReadOnlySpan<byte> hmacKey = "garlic sauce"u8;
         using(RSACryptoServiceProvider rsa = new())
         using(HMACSHA256 hmac = new(hmacKey.ToArray()))
         {
