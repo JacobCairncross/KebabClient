@@ -115,18 +115,17 @@ public class TransactionManager
 
     private async Task<byte[]> SignOutput(TransactionOutput txOut)
     {
+        byte[] signedOutput;
         UTF8Encoding encoder = new();
         byte[] output = encoder.GetBytes(txOut.ToString());
         byte[] hmacKey = Encoding.ASCII.GetBytes("garlic sauce");
-        // ReadOnlySpan<byte> hmacKey = "garlic sauce"u8;
         using(RSACryptoServiceProvider rsa = new())
         using(HMACSHA256 hmac = new(hmacKey.ToArray()))
         {
             rsa.ImportFromPem(await _walletManager.ReadKey(Key.Private));
-            // We may not need this hmac, if the 
             byte[] hashMessage = hmac.ComputeHash(output);
-            Console.WriteLine($"SHA256's name in this is {HashAlgorithmName.SHA256.Name}");
-            return rsa.SignHash(hashMessage, HashAlgorithmName.SHA256.Name);
+            signedOutput = rsa.SignHash(hashMessage, HashAlgorithmName.SHA256.Name);
         }
+        return signedOutput;
     }
 }
