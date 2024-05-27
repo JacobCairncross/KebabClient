@@ -10,9 +10,9 @@ public class WalletController(WalletManager walletManager, MinerManager minerMan
     private KebabClient.Managers.TransactionManager transactionManager;
 
     [HttpGet]
-    public async Task<char[]> GetKey([FromQuery] string key)
+    public async Task<string> GetKey([FromQuery] string key)
     {
-        return await walletManager.ReadKey(key == "private" ? Key.Private : Key.Public);
+        return new string(await walletManager.ReadKey(key == "private" ? Key.Private : Key.Public));
     }
 
     [HttpGet]

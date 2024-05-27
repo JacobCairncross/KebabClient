@@ -1,0 +1,14 @@
+services:
+  client:
+    image: kebab-client
+    ports:
+      - 127.0.0.1:5002:8080
+    # command: sh -c "yarn install && yarn run dev"
+    # working_dir: /app
+    # volumes:
+      # - ./:/app
+    # environment:
+    #   MYSQL_HOST: mysql
+    #   MYSQL_USER: root
+    #   MYSQL_PASSWORD: secret
+    #   MYSQL_DB: todos
