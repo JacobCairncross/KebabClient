@@ -4,6 +4,7 @@ using KebabClient.Models;
 namespace KebabClient.Managers;
 public class WalletManager(Options options)
 {
+    private Options _options => options;
     public enum Key{
         Public,
         Private
@@ -22,12 +23,19 @@ public class WalletManager(Options options)
 
     public async Task<char[]> ReadKey(Key key)
     {
-        string? keyPath = key == Key.Public ? options.publicKeyPath : options.privateKeyPath;
+        string? keyPath = key == Key.Public ? _options.publicKeyPath : _options.privateKeyPath;
         if(keyPath is null)
         {
             throw new Exception("Key path is null");
         }
-        return (await File.ReadAllTextAsync(keyPath)).ToCharArray();
+        if(File.Exists(keyPath))
+        {
+            return (await File.ReadAllTextAsync(keyPath)).ToCharArray();
+        }
+        else
+        {
+            throw new Exception("File does not exist, generate wallet before attempting to read");
+        }
     }
     
 }

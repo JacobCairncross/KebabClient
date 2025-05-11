@@ -4,11 +4,9 @@ using KebabClient.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KebabClient.Controllers;
-public class TransactionController(WalletManager walletManager,BlockChainManager blockChainManager,
-                                     MinerManager minerManager, KebabClient.Managers.TransactionManager transactionManager): Controller
+public class TransactionController(Managers.TransactionManager transactionManager): Controller
 {
     // private KebabClient.Managers.TransactionManager transactionManager;
-
     [HttpPost]
     public async Task<string> Test([FromBody] TestModel testVar)
     {
@@ -26,7 +24,13 @@ public class TransactionController(WalletManager walletManager,BlockChainManager
     [HttpPost]
     public async Task<bool> Send([FromBody] TransactionDTO transaction)
     {
-        List<Tuple<string, int>> outputs = transaction.Outputs.Select(o => new Tuple<string,int>(o.PublicKey, o.Value)).ToList();
-        return await transactionManager.SpendTransactions(outputs);
+        // List<Tuple<string, int>> outputs = transaction.Outputs.Select(o => new Tuple<string,int>(o.PublicKey, o.Value)).ToList();
+        return await transactionManager.SpendTransactions(transaction);
     }
+
+    // [HttpGet]
+    // public async Task<int> GetBalance()
+    // {
+    //     return (await transactionManager.GetAllUnspentTransactions()).Select(o => o.Value).Sum();
+    // }
 }

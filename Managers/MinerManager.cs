@@ -7,12 +7,42 @@ using KebabClient.Models;
 namespace KebabClient.Managers;
 public class MinerManager(KnownMiners knownMiners, IHttpClientFactory httpClientFactory)
 {
-    public async Task<bool> TransmitToMiners(Kebab.Models.Transaction transaction)
+    private KnownMiners _knownMiners => knownMiners;
+    private IHttpClientFactory _httpClientFactory => httpClientFactory;
+    public async Task<List<Block>> GetChain()
+    {
+        // Get chain from every miner and return largest one
+        // This could be slow for large amounts of known miners, maybe restrict in future to only search a few
+        // TODO: parallelise this 
+        List<List<Block>> chains = [];
+        using(HttpClient client = httpClientFactory.CreateClient())
+        {
+            foreach(var miner in _knownMiners.miners)
+            {
+                try 
+                {
+                    HttpResponseMessage response = await client.GetAsync($"{miner}/BlockChain/Chain");
+                    chains.Add(JsonSerializer.Deserialize<List<Block>>(await response.Content.ReadAsStringAsync()) ?? new());
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    Console.WriteLine(e.StackTrace);
+                    Console.WriteLine("==============+=================+");
+                    Console.WriteLine(e.InnerException);
+                }
+            }
+        }
+        return chains.MaxBy(c => c.Count) ?? [];
+    }
+
+    public async Task<bool> TransmitToMiners(TransactionRequest transaction)
     {
         // JsonContent transactionContent = JsonContent.Create(JsonSerializer.Serialize(transaction));
+        // Why is the client being made here?
         List<Task<Tuple<int,string>>> responseTasks = new();
         using(HttpClient client = httpClientFactory.CreateClient())
-        foreach(var miner in knownMiners.miners)
+        foreach(var miner in _knownMiners.miners)
         {
             // Arguably better to just let full url be put in for more flexability but
             // Im not too bothered about that
@@ -44,7 +74,7 @@ public class MinerManager(KnownMiners knownMiners, IHttpClientFactory httpClient
         return true;
     }
 
-    private async Task<Tuple<int,string>> TransmitToMiner(string miner, Kebab.Models.Transaction transaction)
+    private async Task<Tuple<int,string>> TransmitToMiner(string miner, TransactionRequest transaction)
     {
         using(HttpClient client = httpClientFactory.CreateClient())
         {
@@ -54,10 +84,16 @@ public class MinerManager(KnownMiners knownMiners, IHttpClientFactory httpClient
                 // HttpResponseMessage response = await client.PostAsync($"{miner}/BlockChain/Transaction", transactionContent);
                 return new Tuple<int, string>(((int)response.StatusCode), await response.Content.ReadAsStringAsync());
             }
-            catch(TaskCanceledException ex){
+            catch(TaskCanceledException ex)
+            {
                 // Dont much care if any one of them dies, just spit it out and keep going
                 Console.WriteLine($"{ex.Message}, {ex.InnerException}");
                 return new Tuple<int,string>(500, "Request Cancelled");
+            }
+            catch(HttpRequestException ex)
+            {
+                Console.WriteLine($"{ex.Message}, {ex.InnerException}");
+                return new Tuple<int,string>(500, "Request produced exception");
             }
         }
     }

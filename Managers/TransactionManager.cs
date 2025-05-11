@@ -4,66 +4,81 @@ using System.Security.Cryptography;
 using System.Text;
 using KebabClient.Models;
 using static KebabClient.Managers.WalletManager;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace KebabClient.Managers;
 public class TransactionManager
 {
-    private readonly BlockChainManager _blockChainManager;
     private readonly MinerManager _minerManager;
     private readonly WalletManager _walletManager;
-    public TransactionManager(BlockChainManager blockChainManager, MinerManager minerManager,
+    public TransactionManager(MinerManager minerManager,
                                 WalletManager walletManager)
     {
-        _blockChainManager = blockChainManager;
         _minerManager = minerManager;
         _walletManager = walletManager;
     }
     // Should it be bool or return an 'error' object giving reason why it failed?
-    public async Task<bool> SpendTransactions(List<Tuple<string, int>> outputs)
+    public async Task<bool> SpendTransactions(TransactionDTO transactionDTO)
     {
         // Get all transaction outputs assigned to this public key
         // (maybe an efficiency to only get enough to spend the desired amount / keep track of last place in chain with unused transactions)
-        List<TransactionOutputWrapper> UnspentTransactions = GetAllUnspentTransactions(await _walletManager.ReadKey(Key.Public));
         // Use the first transactions to spend the money
-        int outputCost = 0;
-        foreach(var output in outputs)
-        {
-            outputCost += output.Item2;
-        }
 
-        //Make the outputs here
-        Random rnd = new();
-        List<TransactionOutput> transactionOutputs = outputs.Select(
-            o => new TransactionOutput(){
-                PublicKey = o.Item1,
-                Value = o.Item2,
-                Nonce = rnd.Next()
-            }).ToList();
+        if(transactionDTO.Outputs is null)
+        {
+            throw new Exception("No outputs provided");
+        }
         
-        // Transactions to spend will be enough for outputs or it will be empty
-        List<TransactionOutputWrapper> transactionsToSpend = GetTransactionsToSpend(UnspentTransactions, outputCost);
-        if(transactionsToSpend.Count == 0)
+        int outputCost = transactionDTO.Outputs.Sum(x => x.Value);
+        List<TransactionOutput> UnspentTransactions = await GetAllUnspentTransactions(await _walletManager.ReadKey(Key.Public));
+        List<TransactionOutput> transactionsToSpend = GetTransactionsToSpend(UnspentTransactions, outputCost);
+        int walletBalance = transactionsToSpend.Sum(x => x.Value);
+        if(walletBalance < outputCost)
         {
             return false;
         }
 
         List<TransactionInput> transactionInputs = new();
-        foreach(var transactionOutput in transactionsToSpend)
+        // Change to a Select
+        transactionInputs = (await Task.WhenAll(
+            transactionsToSpend.Select(
+                async t => new TransactionInput()
+                {
+                    BlockId = t.BlockId,
+                    TransactionId = t.TransactionId,
+                    OutputIndex = t.OutputIndex,
+                    Signature = await SignOutput(t)
+                }
+        ))).ToList();
+
+        // Add another output to send remainder back to yourself. 
+        // Think bitcoin does it a different way to allow for 'tips' to miners but we'll add that later. Everyone here is obviously altruistic 
+        Random rnd = new();
+        TransactionProvisionalOutput remainder = new TransactionProvisionalOutput()
         {
-            transactionInputs.Add(new TransactionInput(){
-                BlockId = transactionOutput.Blockid,
-                txid = transactionOutput.TxId,
-                OutputIndex = transactionOutput.OutputIndex,
-                Signature = await SignOutput(transactionOutput.TxOut)
-            });
-        }
-        // (might be better to select a few that make the best match - least change - but that doesn't matter if you just make change. Choosing earliest transactions also works better for the speed up of keeping a tracker on the chain)
-        // Sign the transactions to make them inputs
-        // make a transaction
-        Transaction transaction = new Transaction(){
-            ID = "Currently a string but maybe make a GUID instead, cause why not?",
-            Inputs = transactionInputs.ToArray(),
-            Outputs = transactionOutputs.ToArray()
+            PublicKey = new String(await _walletManager.ReadKey(Key.Public)),
+            Value = walletBalance - outputCost,
+            Nonce = rnd.Next()
+        };
+
+
+        // TODO: change this to reflect new model or make a new dto
+        // maybe check how bitcoin does it?
+        // allow using provided nonce
+        TransactionRequest transaction = new TransactionRequest(){
+            Inputs = transactionInputs,
+            Outputs =
+            [
+                ..transactionDTO.Outputs.Select(o => 
+                    new TransactionProvisionalOutput()
+                    {
+                        PublicKey = o.PublicKey,
+                        Value = o.Value,
+                        Nonce = rnd.Next()
+                    }),
+                remainder,
+            ]
         };
 
         // Broadcast it to all known miner nodes
@@ -73,44 +88,62 @@ public class TransactionManager
     }
 
     // Could move this into the Blockchain class?
-    public List<TransactionOutputWrapper> GetAllUnspentTransactions(char[] pubKey)
+    public async Task<List<TransactionOutput>> GetAllUnspentTransactions(char[] pubKey)
     {
-        BlockChain chain = _blockChainManager.GetChain();
-        List<TransactionOutputWrapper> outputs = new();
-        // O(n^3) has no love from me, but is there a way to improve it? Maybe with a full network redo
-        foreach (var block in chain.chain)
+        // Cant instantiate blockchain straight up cause it needs a dbcontext.
+        // Maybe do the abstractions idea?
+        List<Block> chain = await _minerManager.GetChain();
+        // List<TransactionOutputWrapper> outputs = new();
+        List<TransactionOutput> outputs = [];
+        List<TransactionOutput> spentOutputs = [];
+        // I cant math, this totes counts as O(n) where n is the num of transactions.
+        // But to avoid double spend 
+        foreach (Block block in chain)
         {
             foreach (var transaction in block.Transactions)
             {
-                for(int i=0;i<transaction.Outputs.Length;i++)
+                outputs.AddRange(transaction.Outputs.Where(x => x.PublicKey.SequenceEqual(pubKey)));
+
+            }
+        }
+        // TODO: Actually check if they've been spent, this is just all transactions
+        // TODO: Check to see if theres a better way of doing this, cause this seems slow and will just get worse with more transactions
+        // maybe clients can have a personal db that marks unspent transactions in a scheduled sync
+        foreach (Block block in chain)
+        {
+            foreach (var transaction in block.Transactions)
+            {
+                foreach(var input in transaction.Inputs)
                 {
-                    if(transaction.Outputs[i].PublicKey.SequenceEqual(pubKey))
+                    TransactionOutput output = chain[input.BlockId-1].Transactions.First(t => t.Id == input.TransactionId).Outputs[input.OutputIndex];
+                    if(outputs.Contains(output))
                     {
-                        outputs.Add(new TransactionOutputWrapper(
-                            block.BlockId,
-                            transaction.ID,
-                            i,
-                            transaction.Outputs[i]
-                        ));
+                        spentOutputs.Add(output);
                     }
                 }
+                // outputs.AddRange(transaction.Outputs.Where(x => x.PublicKey.SequenceEqual(pubKey)));
+
             }
         }
-        return outputs;
+        return outputs.ExceptBy(
+                spentOutputs.Select(o => $"{o.BlockId}.{o.TransactionId}.{o.OutputIndex}"), 
+                o => $"{o.BlockId}.{o.TransactionId}.{o.OutputIndex}"
+            ).ToList();
     } 
 
-    private List<TransactionOutputWrapper> GetTransactionsToSpend(List<TransactionOutputWrapper> transactions, int value)
+    private List<TransactionOutput> GetTransactionsToSpend(List<TransactionOutput> transactionOutputs, int value)
     {
         int currentCoinTotal = 0;
-        for(int i=0; i<transactions.Count; i++)
-        {
-            currentCoinTotal += transactions[i].TxOut.Value;
-            if(currentCoinTotal >= value)
-            {
-                return transactions.Slice(0,i+1);
-            }
-        }
-        return new List<TransactionOutputWrapper>();
+        return transactionOutputs.TakeWhile(_ => currentCoinTotal < value).ToList();
+        // for(int i=0; i<transactionOutputs.Count; i++)
+        // {
+        //     currentCoinTotal += transactionOutputs[i].Value;
+        //     if(currentCoinTotal >= value)
+        //     {
+        //         return transactionOutputs.Slice(0,i+1);
+        //     }
+        // }
+        // return new List<TransactionOutputWrapper>();
     }
 
     private async Task<byte[]> SignOutput(TransactionOutput txOut)
