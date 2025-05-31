@@ -1,0 +1,44 @@
+@model KebabClient.Models.TransactionDTO
+
+@{
+    ViewData["Title"] = "Wallet";
+}
+
+<h2>Wallet</h2>
+
+<h3>Your Public Key:</h3>
+<p>@ViewData["PublicKey"]</p>
+
+<img src=@ViewData["PublicKeyPng"] alt="Public Key QRCode" height="250px" width="250px"/>
+
+<h3>Your Balance:</h3>
+<p>@ViewData["Balance"]</p>
+
+<h3>Send: </h3>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Send">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="Id" />
+            <div class="form-group">
+                <label asp-for="PublicKey" class="control-label">PubKey</label>
+                <input asp-for="PublicKey" class="form-control" />
+                <span asp-validation-for="PublicKey" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Value" class="control-label">Value</label>
+                <input asp-for="Value" class="form-control" />
+                <span asp-validation-for="Value" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Nonce" class="control-label">Nonce</label>
+                <input asp-for="Nonce" class="form-control" />
+                <span asp-validation-for="Nonce" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>

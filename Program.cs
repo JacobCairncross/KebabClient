@@ -75,11 +75,15 @@ app.MapGet("/hi", () => "Hello!");
 
 
 // app.MapDefaultControllerRoute();
+// app.MapControllerRoute(
+//         name: "Default",
+//         pattern: "{controller}/{action}",
+//         defaults: new { controller = "Dashboard", action = "Index" }
+//     );
+
 app.MapControllerRoute(
-        name: "Default",
-        pattern: "{controller}/{action}",
-        defaults: new { controller = "Home", action = "Index" }
-    );
+    name: "default",
+    pattern: "{controller=Dashboard}/{action=Index}/{id?}");
 app.MapRazorPages();
 
 app.Run();
